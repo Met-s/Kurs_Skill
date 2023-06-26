@@ -177,6 +177,7 @@ class Game:
         co = self.random_board()
         co.hid = True
 
+
         self.ai = AI(co, pl)
         self.us = User(pl, co)
 
