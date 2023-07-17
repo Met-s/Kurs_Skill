@@ -38,7 +38,8 @@ class Converter:
 
         r = requests.get(f'https://v6.exchangerate-api.com/v6'
                          f'/c94bc54473582e54e7bb0082/pair/'
-                         f'{quote_ticker}/{base_ticker}')
-        total_base = round(float(json.loads(r.content)["conversion_rate"]), 2)
+                         f'{quote_ticker}/{base_ticker}/{amount}')
+        total_base = round(float(json.loads(r.content)[
+                                    "conversion_result"]), 2)
 
         return total_base
