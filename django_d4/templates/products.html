@@ -1,0 +1,114 @@
+{% extends 'flatpages/default.html' %}
+{% load custom_filters %}
+<!--Подключаем новый файл с нашим тегом-->
+{% load custom_tags %}
+
+
+{% block title %}
+Products
+{% endblock title %}}
+
+
+{% block content %}
+    <hr>
+    <h3>products.html</h3>
+    <hr>
+    <h1>Все товары</h1>
+<!--Вот так выглядело использование переменной и фильтра-->
+<!--    {# <h3>{{ time_now|date:'M d Y'}}</h3> #}-->
+<!--А вот так мы используем наш тег-->
+    <h3>{% current_time '%b %d %Y' %}</h3>
+
+<!--        Если в переменной next_sale будет NONE,
+то выведется указанный в переменной текст-->
+        {# <h3> {{ next_sale|default_if_none:"Чуть позже сообщим о распродаже!" }}</h3> #}
+
+   {# Добавляем форму, которая объединяет набор полей, которые будут отправляться в запросе #}
+    <form action="" method="get">
+        {# Переменная которую передали через контекст, может сгенерировать нам форму с полями #}
+        {{ filterset.form.as_p }}
+        {# Добавим кнопку отправки данных формы #}
+        <input type="submit" value="Найти" />
+    </form>
+
+    {# Теперь будем проверять не request.user.is_authenticated, а конкретные права #}
+{% if perms.simpleapp.add_product %}
+     <a href="{% url 'product_create' %}">Добавить товар</a>
+{% endif %}
+  <hr>
+        {% if products %}
+            <table>
+                 <tr>
+                    <td>Название</td>
+                    <td>Описание</td>
+                    <td>Категория</td>
+                    <td>Цена</td>
+                    <td>Количество</td>
+                 {# Условие получается составным #}
+                 {% if perms.simpleapp.change_product or perms.simpleapp.delete_product %}
+                    <td>Действие</td>
+                 {% endif %}
+                </tr>
+                {% for product in products %}
+                <tr>
+                    <td>
+                        <a href="{% url 'product_detail' pk=product.id %}">{{ product.name }}</a>
+                    </td>
+                    <td>{{ product.description|truncatewords:2}}</td>
+                    <td>{{ product.category.name }}</td>
+                    <td>{{ product.price|currency:"rub" }}</td>
+                    <td>{{ product.quantity }}</td>
+
+                    <td>
+                        {# А здесь доступ к каждой ссылке будет проверяться отдельно #}
+                        {% if perms.simpleapp.change_product %}
+                            <a href="{% url 'product_update' pk=product.id %}">Изменить</a>
+                        {% endif %}
+                        {% if perms.simpleapp.delete_product %}
+                            <a href="{% url 'product_delete' pk=product.id %}">Удалить</a>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+
+            </table>
+        {% else %}
+            <h2>Товаров нет!</h2>
+        {% endif %}
+        {# Добавим пагинацию на страницу #}
+        {# Информация о предыдущих страницах #}
+        {% if page_obj.has_previous %}
+            {# <a href="?page=1">1</a> # было #}
+            {# Стало #}
+            <a href="?{% url_replace page=1 %}">1</a>
+
+            {% if page_obj.previous_page_number != 1 %}
+                ...
+                {# Было  #}
+            {# <a href="?page={{ page_obj.previous_page_number }}">{{ page_obj.previous_page_number }}</a> #}
+                {# Стало #}
+                <a href="?{% url_replace page=page_obj.previous_page_number %}">{{ page_obj.previous_page_number }}</a>
+            {% endif %}
+        {% endif %}
+
+        {# Информация о текущей странице #}
+        {{ page_obj.number }}
+
+        {# Информация о следующих страницах #}
+        {% if page_obj.has_next %}
+            {# Было  #}
+            {# <a href="?page={{ page_obj.next_page_number }}">{{ page_obj.next_page_number }}</a> #}
+            {# Стало #}
+            <a href="?{% url_replace page=page_obj.next_page_number %}">{{ page_obj.next_page_number }}</a>
+
+            {% if paginator.num_pages != page_obj.next_page_number %}
+                ...
+                {# Было  #}
+                {# <a href="?page={{ page_obj.paginator.num_pages }}">{{ page_obj.paginator.num_pages }}</a> #}
+                {# Стало #}
+                <a href="?{% url_replace page=page_obj.paginator.num_pages %}">{{ page_obj.paginator.num_pages }}</a>
+            {% endif %}
+        {% endif %}
+
+
+{% endblock content %}

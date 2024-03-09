@@ -1,0 +1,44 @@
+python.exe -m pip install --upgrade pip
+python -m venv venv
+venv\scripts\activate
+source venv/bin/activate
+pip install django
+django-admin startproject project
+cd project
+python manage.py makemigrations
+python manage.py migrate
+python manage.py showmigrations — показать все изменения вносимые в базу данных.
+python manage.py runserver
+python manage.py createsuperuser
+deactivate
+python manage.py startapp news
+python manage.py createsuperuser
+python manage.py changepassword <имя пользователя>   # Сброс пароля
+    Подробнее здесь: https://docs.djangoproject.com/en/3.1/ref/django-admin/
+---------Запуск собственных команд---
+python manage.py <название файла с командой>
+python manage.py <название файла с командой> --help
+ выводит то что написанно в переменной help. Таким образом можно писать
+ документации к командам.
+---------Работа с БД--------
+Создаёт копию БД в формате json и xml
+python -Xutf8 manage.py dumpdata --format=json --output mydata.json
+python -Xutf8 manage.py dumpdata --format=xml --output mydata.xml
+Загружаем в БД
+python manage.py loaddata mydata.json
+python manage.py loaddata mydata.xml
+-------------Создание файла установки пакетов-------
+Создаёт файл со списком пакетов для последующей установки
+pip freeze > requirments.txt
+Устанавливаем все пакеты из файла
+pip install -r requirments.txt
+-------------Команды для перевода D_14--------------
+Создаёт файл перевода
+python manage.py makemessages -l ru
+Создаёт компилированный файл
+django-admin compilemessages -l ru
+Запуск сервера
+py manage.py runserver
+python manage.py update_translation_fields
+-------------
+python manage.py --help
