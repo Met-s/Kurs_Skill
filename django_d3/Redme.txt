@@ -1,0 +1,526 @@
+Зарегистрировал модели
+
+simpleapp/admin.py
+
+from django.contrib import admin
+from .models import Category, Product
+
+admin.site.register(Category)
+admin.site.register(Product)
+----------------------------------
+В данный момент нам нужен дженерик ListView, который выводит список объектов
+модели, используя указанный шаблон.
+
+simpleapp/views.py
+
+# Импортируем класс, который говорит нам о том,
+# что в этом представлении мы будем выводить список объектов из БД
+from django.views.generic import ListView
+from .models import Product
+
+class ProductsList(ListView):
+    # Указываем модель объекты которой будем выводить
+    model = Product
+    # Поле, которое будет использоваться для сортировки объектов
+    ordering = 'name'
+    # Указываем имя шаблона, в котором будут все инструкции о том, как именно
+    # пользователю должны быть показаны наши объекты
+    template_name = 'products.html'
+    # Это имя списка, в котором будут лежать все объекты.
+    # Его надо указать, чтобы обратиться к списку объектов в html-шаблоне.
+    context_object_name = 'products'
+
+Вот так можно использовать дженерик ListView для вывода списка товаров:
+ 1.Создаём свой класс, который наследуется от ListView
+ 2.Указываем модель, из которой будем выводить данные.
+ 3.Указываем поле сортировки данных модели (необязательно)
+ 4.Записываем название шаблона.
+ 5.Объявляем, как хотим назвать переменную в шаблоне.
+-------------------------------
+Настраиваем адрес:
+Для этого необходимо настроить пути в файле urls.py. При выполнении
+инициализации нового приложения Django не создавал этот файл в нашей директории,
+поэтому мы создадим его сами.
+simpleapp/urls.py
+
+from django.urls import path
+from .views import ProductsList
+
+urlpatterns = [
+    # path - означает ПУТЬ
+    # В данном случае путь ко всем товарам останется пустым
+    # Т.к. объявленное представление является классом, а Django ожидает
+    # функцию, надо представить этот класс в виде view.
+    # Для этого вызываем метод as_view.
+    path('', ProductsList.as_view()),
+]
+Задали ПУТЬ к нашему представлению
+-----------------------------------
+Вывод из БД. Для этого в главном файле urls.py в котором подключали flatpages
+нужно сделать так, чтобы он автоматически включал все наши адреса из приложения
+ и добавлял к нему префикс products.
+
+django_d3/urls.py
+
+from django.contrib import admin
+from django.urls import path, include
+
+urlpatterns = [
+    path('admin/', admin.site.urls),
+    path('pages/', include('django.contrib.flatpages.urls')),
+    # Делаем так, чтобы все адреса из нашего приложения (simpleapp/urls.py)
+    # подключались к главному приложению с префиксом products/.
+    path('products/', include('simpleapp.urls')),
+]
+------------------------------------
+Настроил settings.py
+
+'django.contrib.sites',
+'django.contrib.flatpages',
+'simpleapp'
+
+SITE_ID = 1
+
+'django.contrib.flatpages.middleware.FlatpageFallbackMiddleware',
+
+'DIRS': [os.path.join(BASE_DIR, 'templates')],
+или
+'DIRS': [BASE_DIR / 'templates'],
+
+STATICFILES_DIRS = [
+    BASE_DIR / "static"
+]
+---------------------------------------
+Применил миграции
+
+py manage.py makemigrations
+py manage.py migrate
+
+Создал супер юзера
+
+py manage.py createsuperuser
+---------------------------------------
+Добавляем шаблон default.html
+
+templates/flatpages/default.html
+---------------------------------------
+Добавил папку static и изменил шаблон в default.html
+---------------------------------------
+добавление панели в админке: для зарегистрированных пользователей
+создадим файл django_d3/flatpages/admin.py
+
+from django.contrib import admin
+from django.contrib.flatpages.admin import FlatPageAdmin
+from django.contrib.flatpages.models import FlatPage
+from django.utils.translation import gettext_lazy as _
+
+# Define a new FlatPageAdmin
+class FlatPageAdmin(FlatPageAdmin):
+    fieldsets = (
+        (None, {'fields': ('url', 'title', 'content', 'sites')}),
+        (_('Advanced options'), {
+        'classes': ('collapse',),
+        'fields': (
+            'enable_comments',
+            'registration_required',
+            'template_name',
+         ),
+        }),
+    )
+# Re-register FlatPageAdmin
+admin.site.unregister(FlatPage)
+admin.site.register(FlatPage, FlatPageAdmin)
+
+Нужно зарегистрировать новое приложение Flatpages в настройках settings.py
+'fpages'
+---------------------------------------
+Несмотря на то, что мы видим довольно неказистый текст (пока что),всё же здесь
+присутствуют наши товары.
+
+Если переложить всё, что сделали на MVC, то получится:
+1. Model - сделали модели для товаров и категорий в models.py
+2. View - написали темплейт в products.html
+3. Controller - настроили представление с логикой вывода списка товаров в views.py
+Вот все части MVC и сложились в нашем приложении.
+---------------------------------------
+views.py
+Фильтр цена ниже 500
+class ProductsList(ListView):
+    # Указываем модель объекты которой будем выводить
+    # model = Product
+    # Поле, которое будет использоваться для сортировки объектов
+    # ordering = 'name'
+    queryset = Product.objects.filter(
+        price__lt=500
+    )
+    # Указываем имя шаблона, в котором будут все инструкции о том, как именно
+    # пользователю должны быть показаны наши объекты
+    template_name = 'products.html'
+    # Это имя списка, в котором будут лежать все объекты.
+    # Его надо указать, чтобы обратиться к списку объектов в html-шаблоне.
+    context_object_name = 'products'
+----
+Можно добавить сортировку и по имени
+queryset = Product.objects.filter(
+        price__lt=900
+    ).order_by('-name')
+---------------------------------------
+Добавил в views.py class ProductDetail(DetailView):
+для отображения одного продукта
+---------------------------------------
+Добавляем адрес в simpleapp/urls.py.
+Адрес будет немного отличаться. В него нужно добавить идентификатор товара,
+который хотим получить.
+    # pk - это первичный ключ товара, который будет выводиться у нас в шаблон
+    # int - указывает на то, что принимаются только целочисленные значения
+path('<int:pk>', ProductDetail.as_view()),
+---------------------------------------
+Добавляем новый шаблон для вывода одного товара по id
+django_d3/templates/product.html
+---------------------------------------
+Подытожим
+1. Добавил новое представление в view.py
+2. Зарегистрировал представление в urls.py на путь, который содержит
+    целочисленный идентификатор объекта.
+3. Добавил новый шаблон в templates для представления.
+---------------------------------------------------------
+Изменил templates/products.html добавил условие если товаров нет, выводится
+сообщение Товаров нет!
+{% block content %}
+    <hr>
+    <h3>products.html</h3>
+    <hr>
+    <h1>Все товары</h1>
+        {% if products %}
+            {{ products }}
+        {% else %}
+            <h2>Товаров нет!</h2>
+        {% endif %}
+{% endblock content %}
+---------------------------------------
+Это обычное условие из python:
+В шаблонах выглядит так:
+
+{% if <условие> %} # Блок HTML кода, который отобразится если условие истинно
+
+{% elif <условие 2> %} # Блок HTML кода, который отобразится если условие 2 истинно
+
+{% else %} # Блок HTML кода, который отобразится только если оба условия ложны
+
+{% endif %}
+---------------------------------------
+Изменил templates/products.html
+Создал таблицу:
+{% block content %}
+    <hr>
+    <h3>products.html</h3>
+    <hr>
+    <h1>Все товары</h1>
+        {% if products %}
+            <table>
+                <tr>
+                    <td>Название</td>
+                    <td>Описание</td>
+                    <td>Категория</td>
+                    <td>Цена</td>
+                    <td>Количество</td>
+                </tr>
+            </table>
+        {% else %}
+            <h2>Товаров нет!</h2>
+        {% endif %}
+{% endblock content %}
+---------------------------------------
+Заполнил таблицу
+{% block content %}
+    <hr>
+    <h3>products.html</h3>
+    <hr>
+    <h1>Все товары</h1>
+        {% if products %}
+            <table>
+                 <tr>
+                    <td>Название</td>
+                    <td>Описание</td>
+                    <td>Категория</td>
+                    <td>Цена</td>
+                    <td>Количество</td>
+                </tr>
+                {% for product in products %}
+                <tr>
+                    <td>{{ product.name }}</td>
+                    <td>{{ product.description }}</td>
+                    <td>{{ product.category.name }}</td>
+                    <td>{{ product.price }}</td>
+                    <td>{{ product.quantity }}</td>
+                </tr>
+                {% endfor %}
+            </table>
+        {% else %}
+            <h2>Товаров нет!</h2>
+        {% endif %}
+{% endblock content %}
+---------------------------------------
+Фильтр в шаблоне: отрезает 15 символов и добавляет ...
+<tr>
+    <td>{{ product.name }}</td>
+    <td>{{ product.description|truncatechars:15 }}</td>
+    <td>{{ product.category.name }}</td>
+    <td>{{ product.price }}</td>
+    <td>{{ product.quantity }}</td>
+</tr>
+---------------------------------------
+Фильтр в шаблоне: отрезает 2 слова и добавляет ...
+<td>{{ product.description|truncatewords:2 }}</td>
+
+Фильтры очень похожи на методы или функции и имеют примерно следующий синтаксис:
+<переменная>|<название метода>:<аргументы>
+---------------------------------------
+1. Импортировал модуль datetime, чтобы получить текущую дату
+2. Переопределил метод get_context_data, добавив две переменные, которые будут
+доступны в шаблоне.
+
+from datetime import datetime
+class ProductsList(ListView):
+# Метод get_context_data позволяет изменить набор данных,
+    # который будет передан в шаблон
+
+    def get_context_data(self, **kwargs):
+        # С помощью super() обращаемся к родительским классам и вызываем у них
+        # метод get_context_data с теми же аргументами.
+        # В ответе должны получить словарь.
+        context = super().get_context_data(**kwargs)
+        # К словарю добавим текущую дату в ключ 'time_now'
+        context['time_now'] = datetime.utcnow()
+        # Добавим ещё одну пустую переменную,
+        # чтобы на её примере рассмотреть работу ещё одного фильтра.
+        context['next_sale'] = None
+        return context
+---------------------------------------
+Добавил отображение пользователю
+
+{% block content %}
+    <hr>
+    <h3>products.html</h3>
+    <hr>
+    <h1>Все товары</h1>
+
+    # Используем переданную из представления переменную time_now и применяем
+    к ней фильтр data. По назначению этот фильтр очень похож на метод
+    strftime у объекта datetime в Python - вывод времени в указанном формате.
+
+    <h3>{{ time_now|date:'M d Y'}}</h3>
+    <hr>
+        {% if products %}
+            <table>
+                 <tr>
+                    <td>Название</td>
+                    <td>Описание</td>
+                    <td>Категория</td>
+                    <td>Цена</td>
+                    <td>Количество</td>
+                </tr>
+                {% for product in products %}
+                <tr>
+                    <td>{{ product.name }}</td>
+                    <td>{{ product.description|truncatewords:2 }}</td>
+                    <td>{{ product.category.name }}</td>
+                    <td>{{ product.price }}</td>
+                    <td>{{ product.quantity }}</td>
+                </tr>
+                {% endfor %}
+            </table>
+        {% else %}
+            <h2>Товаров нет!</h2>
+        {% endif %}
+{% endblock content %}
+---------------------------------------
+Сообщение о распродаже:  next_sale взята из
+def get_context_data(self, **kwargs): файла views.py
+
+products.html
+
+{% block content %}
+    <hr>
+    <h3>products.html</h3>
+    <hr>
+    <h1>Все товары</h1>
+    <h3>{{ time_now|date:'M d Y'}}</h3>
+<!--        Если в переменной next_sale будет NONE,
+то выведется указанный в переменной текст-->
+        <h3> {{ next_sale|default_if_none:"Чуть позже сообщим о распродаже!" }}</h3>
+    <hr>
+        {% if products %}
+---------------------------------------
+При замене значения next_sale в представлении views.py на какую-нибудь строку,
+будет выведено её содержимое.
+
+def get_context_data(self, **kwargs):
+        # С помощью super() обращаемся к родительским классам и вызываем у них
+        # метод get_context_data с теми же аргументами.
+        # В ответе должны получить словарь.
+        context = super().get_context_data(**kwargs)
+        # К словарю добавим текущую дату в ключ 'time_now'
+        context['time_now'] = datetime.utcnow()
+        # Добавим ещё одну пустую переменную,
+        # чтобы на её примере рассмотреть работу ещё одного фильтра.
+
+        context['next_sale'] = "Распродажа в среду!"
+
+        return context
+----------------
+Обратите внимание, что тег default_if_none не обрабатывает пустые строки,
+пустые списки и прочее. Его задача отследить только переменную None.
+Для того чтобы отлавливать пустые строки, списки и другое, используется фильтр
+ default, который имеет точно такой синтаксис.
+---------------------------------------
+Собственный фильтр
+
+from django import template
+
+register = template.Library()
+
+# Регистрируем фильтр под именем currency, чтоб Django понимал,
+# что это именно фильтр для шаблона, а не простая функция.
+
+@register.filter()
+def currency(value):
+    """
+    value: значение, к которому нуо применить фильтр
+    """
+    # Возвращаемое функцией значение подставится в шаблон.
+    return f'{value} P'
+-----------------
+Декоратор register.filter() указывает Django, что нужно запомнить про
+существование нового фильтра. Название фильтра по умолчанию берётся равным
+названию функции,то есть в шаблоне можно писать  {{ price|currency }}.
+Можно самим назвать фильтр. Например: register.filter(name='currency_rub'),
+а название функции не менять, тогда в шаблоне пишем {{ price|currency_rub }}.
+-------------------
+Функция, которую зарегистрировали как фильтр, очень простая. Она принимает один
+аргумент - переменную, с которой его используют в шаблоне. Сама функция
+выполняет просто форматирование строки и сразу её возвращает. Результат этой
+функции и будет подставлен в шаблоне.
+----------------
+После добавления файла с новыми фильтрами, нужно перезагрузить Django-сервер.
+----------------
+Просто взять и указать фильтр в шаблоне не получится.
+Нужно подключить свои фильтры в шаблоне.
+Сделать это можно с помощью указания тега {% load custom_filters %}
+Где custom_filters - это название файла с нашим фильтром.
+---------------------------------------
+Добавили словарь со списком кодов валют и их символов, используем в функции.
+Мы не увидим, ни каких ошибок насчёт того, что аргумент у фильтра есть, а мы
+его не используем. Потому что указали значение по умолчанию code='rub'.
+
+CURRENCIES_SYMBOLS = {
+    'rub': 'руб',
+    'usd': '$',
+}
+
+@register.filter()
+def currency(value, code='rub'):
+    """
+    value: значение, к которому нуо применить фильтр
+
+    """
+    postfix = CURRENCIES_SYMBOLS[code]
+    # Возвращаемое функцией значение подставится в шаблон.
+    return f'{value} {postfix}'
+---------------
+Укажем в шаблоне products.html "usd"
+
+<tr>
+    <td>{{ product.name }}</td>
+    <td>{{ product.description|truncatewords:2 }}</td>
+    <td>{{ product.category.name }}</td>
+    <td>{{ product.price|currency:"usd" }}</td>
+    <td>{{ product.quantity }}</td>
+</tr>
+---------------------------------------
+Теперь разберёмся с тегами.
+Представим что текущую дату нужно вывести на множестве страниц.
+
+simpleapp/templatetags/custom_tags.py
+
+from datetime import datetime
+from django import template
+
+register = template.Library()
+
+@register.simple_tag()
+def current_time(format_string='%b %d %Y'):
+    return datetime.utcnow().strftime(format_string)
+-------------------
+products.html
+
+{% extends 'flatpages/default.html' %}
+{% load custom_filters %}
+<!--Подключаем новый файл с нашим тегом-->
+{% load custom_tags %}
+
+<h2>{% block title %}
+    Products
+    {% endblock title %}}</h2>
+
+{% block content %}
+    <hr>
+    <h3>products.html</h3>
+    <hr>
+    <h1>Все товары</h1>
+<!--Вот так выглядело использование переменной и фильтра-->
+<!--    <h3>{{ time_now|date:'M d Y'}}</h3>-->
+
+<!--А вот так мы используем наш тег-->
+    <h3>{% current_time '%b %d %Y' %}</h3>
+
+
+<!--        Если в переменной next_sale будет NONE,
+то выведется указанный в переменной текст-->
+        <h3> {{ next_sale|default_if_none:"Чуть позже сообщим о распродаже!" }}</h3>
+    <hr>
+        {% if products %}
+-------------------
+А вот от переменной time_now, которую мы указали в представлении, теперь можно
+избавиться и переиспользовать наш тег в любых шаблонах. Также как и для фильтра,
+указали значение аргумента по умолчанию. Делать это необязательно, но если в
+большинстве случаев будет использоваться одно и тоже значение аргумента,
+то проще указать его по умолчанию.
+---------------------------------------
+Метод pprint:
+views.py
+
+from pprint import pprint
+
+ def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['next_sale'] = "Распродажа в среду!"
+
+        pprint(context)
+
+        return context
+Перезапускаем страницу и можем посмотреть в терминале что хранится
+в переменной context
+
+ pprint(id(context['object_list']))
+---------------------------------------
+
+---------------------------------------
+
+---------------------------------------
+
+---------------------------------------
+
+---------------------------------------
+
+---------------------------------------
+
+---------------------------------------
+
+---------------------------------------
+---------------------------------------
+Сделаем так, чтобы для работы с товарами была отдельная ссылка. Например,
+просмотр всех товаров был доступен по ссылке: products/,
+создание товара: product/create
+
+
