@@ -1,0 +1,116 @@
+py manage.py shell
+
+from store.models import *
+
+cap_big = Product.objects.create(name='Монитор', price=9999.0)
+product_1 = Product.objects.create(name='Витая пара (3 м.)', price=993.0,
+    slug='vit3m')
+product_2 = Product.objects.create(name='Клавиатура', price=1060.0, slug='klav')
+product_3 = Product.objects.create(name='Витая пара 1 м.', price=109.0,
+    slug='vit1m')
+
+cashier1 = Staff.objects.create(full_name='Иванов Иван Иванович',
+    position=Staff.cashier, labor_contract=1754)
+cashier2 = Staff.objects.create(full_name='Петров Пётр Петрович',
+    position=Staff.cashier, labor_contract=4355)
+direct = Staff.objects.create(full_name='Максимов Максим Максимович',
+    position=Staff.director, labor_contract=1254)
+
+person = Staff.objects.get(labor_contract=1254)
+
+>>> person.full_name
+'Максимов Максим Максимович'
+
+ p = Staff.objects.get(pk=2)
+>>> p
+<Staff: Staff object (2)>
+>>> p.full_name
+'Петров Пётр Петрович'
+
+c = Staff.objects.filter(position=Staff.cashier)
+>>> for i in c:
+...     i.full_name
+...
+'Иванов Иван Иванович'
+'Петров Пётр Петрович'
+
+c.values("full_name", "labor_contract")
+<QuerySet [{'full_name': 'Иванов Иван Иванович', 'labor_contract': 1754},
+{'full_name': 'Петров Пётр Петрович', 'labor_contract': 4355}]>
+
+# Дописав к названию поля __gt в аргументе метода, получим все значения которые
+больше (greater than) заданного числа
+
+ Product.objects.filter(price__gt=90.0).values("name")
+<QuerySet [{'name': 'Монитор'}, {'name': 'Витая пара (3 м.)'}, {'name': 'Клавиатура'}, {'n
+ame': 'Витая пара 1 м.'}]>
+
+ ca = Staff.objects.all().first()
+>>> ca.full_name
+'Иванов Иван Иванович'
+
+Создал заказ
+ order = Order.objects.create(staff=ca)
+
+ Вызвал метод get_duration, показывает сколько прошло времени с момента
+ создания заказа
+>>> order.get_duration()
+17.0
+
+Завершил заказ
+ order.finish_order()
+
+ Переменные в процессе моно перезаписывать, главное не запутаться :)
+
+p1 = Product.objects.all()[0]
+p2 = Product.objects.all()[1]
+
+Добавил в order продукт
+order.products.add(p1)
+order.products.add(p2)
+
+Все продукты в заказе
+
+order.products.all()
+
+ order.products.all().values('name')
+<QuerySet [{'name': 'Монитор'}, {'name': 'Витая пара (3 м.)'}]>
+
+order.products.all().values('name', 'price')
+<QuerySet [{'name': 'Монитор', 'price': 9999.0},
+{'name': 'Витая пара (3 м.)', 'price': 993.0}]>
+
+Все заказы кассира
+ca.order_set.all()
+<QuerySet [<Order: Order object (1)>, <Order: Order object (2)>]>
+
+Создал заказ
+Order.objects.create(staff=ca,pickup=False)
+
+Завершил заказы
+
+r = Order.objects.get(id=3)
+r.finish_order()
+Order.objects.get(id=4).finish_order()
+
+Все заказы сотрудника
+Order.objects.filter(staff__labor_contract=1754).
+values("staff__full_name","pickup")
+
+<QuerySet [{'staff__full_name': 'Иванов Иван Иванович', 'pickup': False},
+{'staff__full_name': 'Иванов Иван Иванович', 'pickup': False},
+{'staff__full_name': 'Иванов Иван Иванович', 'pickup': False},
+{'staff__full_name': 'Иванов Иван Иванович', 'pickup': True}]>
+
+Сортировка
+Product.objects.all().order_by('price').values('name','price')
+<QuerySet [{'name': 'Витая пара 1 м.', 'price': 109.0},
+{'name': 'Витая пара (3 м.)', 'price': 993.0},
+{'name': 'Клавиатура', 'price': 1060.0},
+{'name': 'Монитор', 'price': 9999.0}]>
+
+Product.objects.all().order_by('-price').values('name','price')
+<QuerySet [{'name': 'Монитор', 'price': 9999.0},
+{'name': 'Клавиатура', 'price': 1060.0},
+{'name': 'Витая пара (3 м.)', 'price': 993.0},
+{'name': 'Витая пара 1 м.', 'price': 109.0}]>
